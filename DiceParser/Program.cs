@@ -3,6 +3,7 @@ using Antlr4.Runtime;
 using Antlr4.Runtime.Tree;
 using DiceParser.Grammar;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace DiceParser
 {
@@ -56,7 +57,7 @@ namespace DiceParser
     {
         private int _indent = 0;
 
-        private IDescriptorFactory _rollFactory = new DescriptorFactory();
+        private IDescriptorFactory _descriptorFactory = new DescriptorFactory();
 
         private void Write(string text)
         {
@@ -68,11 +69,16 @@ namespace DiceParser
         }
 
         public override Descriptor VisitEntry(DiceGrammarParser.EntryContext context) { 
+            Console.WriteLine("Parse tree:");
             Write($" Entry {context.GetText()}");
-            //return new Entry(context);
+            var e = _descriptorFactory.CreateEntry(context);
             _indent++;
             var res = VisitChildren(context);
             _indent--;
+            
+            Console.WriteLine($"Rolling: {e.UnresolvedText}");
+            Console.WriteLine($"Result : {e.ResolvedText}");
+
             return res;
         }
 
@@ -142,48 +148,32 @@ namespace DiceParser
     public abstract class Descriptor
     {
         public string Text { get; protected set; }
+        public abstract string UnresolvedText { get; }
+        public abstract string ResolvedText { get; }
+
+        public override string ToString()
+        {
+            return $"{UnresolvedText}\r\n{ResolvedText}"; ;
+        }
     }
 
     public class Entry : Descriptor
     {
         public Definition Definition { get; set; }
         public object Label { get; set; }
+
+        public override string UnresolvedText => string.IsNullOrEmpty(Label?.ToString()) ? Definition.UnresolvedText : $"{Label}: {Definition.UnresolvedText}";
+        public override string ResolvedText =>   string.IsNullOrEmpty(Label?.ToString()) ? Definition.ResolvedText   : $"{Label}: {Definition.ResolvedText}"  ;
     }
 
-    public class Definition : Descriptor
+    public abstract class Definition : Descriptor
     {
-
-        public Roll LeftRoll { get; set; }
-        public Roll RightRoll { get; set; }
-        public Comparison Comparison { get; set; }
     }
 
-    public abstract class Roll : Descriptor
+    public abstract class Roll : Definition
     {
         public int Value { get; protected set; }
-
-        //public Roll(DiceGrammarParser.RollContext context)
-        //{
-        //    if (context.children.Count > 0)
-        //    {
-        //        var dieContext = context.children[0] as DiceGrammarParser.DieContext;
-        //        if (dieContext != null) FirstElement = new Die(dieContext);
-        //    }
-
-        //    if (context.children.Count > 2)
-        //    {
-        //        var operationContext = context.children[1] as DiceGrammarParser.OperationContext;
-        //        Operation = new Operation(operationContext);
-        //        var nestedRollContext = context.children[2] as DiceGrammarParser.RollContext;
-        //        NestedRoll = new Roll(nestedRollContext);
-        //    }
-        //}
-
-        //public int Value { get; protected set; }
-
-        //RollElement FirstElement { get; set; }
-        //Operation Operation { get; set; }
-        //Roll NestedRoll { get; set; }
+        public List<int> Values { get; protected set; } = new List<int>();
     }
 
     public class Die : Roll
@@ -192,12 +182,23 @@ namespace DiceParser
         {
             Qty = qty;
             DieSize = dieSize;
-            Value = new Random().Next(1, dieSize);
+            
+            var r = new Random();
+            for (int i = 0; i < qty; i++)
+            {
+                var dieResult = r.Next(1, dieSize);
+                Value += dieResult;
+                Values.Add(dieResult);
+            }
+
             Text = $"d{dieSize}";
         }
 
         public int Qty { get; }
         public int DieSize { get; }
+
+        public override string UnresolvedText => Qty > 1 ? $"{Qty}d{DieSize}" : $"d{DieSize}";
+        public override string ResolvedText => Values.Aggregate("", (s, v) => $"{s}+{v}").Trim('+');
     }
 
     public class Constant : Roll
@@ -205,67 +206,99 @@ namespace DiceParser
         public Constant(int value)
         {
             Value = value;
+            Values.Add(value);
             Text = $"{value}";
         }
 
-        public Constant(DiceGrammarParser.ConstantContext constant)
-        {
-        }
+        public override string UnresolvedText => $"{Value}";
+        public override string ResolvedText => $"{Value}";
+
     }
 
     public class CompoundRoll : Roll
     {
-        public CompoundRoll(DiceGrammarParser.RollContext left, DiceGrammarParser.OperationContext operation, DiceGrammarParser.RollContext right)
+        public Roll Left { get; set; }
+        public Roll Right { get; set; }
+        public string Operator { get; }
+
+        public CompoundRoll(Roll left, string op, Roll right)
         {
-            
+            Left = left;
+            Right = right;
+            Operator = op;
+
+            switch (op)
+            {
+                case "+":
+                    Value = Left.Value + Right.Value;
+                    break;
+                    
+                case "-":
+                    Value = Left.Value - Right.Value;
+                    break;
+
+                default:
+                    throw new ArgumentException("Operator must be one of the following: +, -", nameof(op));
+            }
+            Values.Add(Left.Value);
+            Values.Add(Right.Value);
         }
+
+        public override string ToString()
+        {
+            return $"{Left} {Operator} {Right}";
+        }
+
+        public override string UnresolvedText => $"{Left.UnresolvedText} {Operator} {Right.UnresolvedText}";
+        public override string ResolvedText => $"{Left.ResolvedText} {Operator} {Right.ResolvedText}";
     }
 
-    public class Comparison : Descriptor
+    public class Comparison : Definition
     {
-        public Comparison(string comparisonOperator)
+        public Roll Left { get; set; }
+        public Roll Right { get; set; }
+        public string Operator { get; }
+        public string Result { get; }
+
+        private Func<Roll, Roll, bool> ComparisonDelegate;
+
+        public Comparison(Roll left, string op, Roll right)
         {
-            ComparisonOperator = comparisonOperator;
-            switch (ComparisonOperator)
+            Left = left;
+            Right = right;
+            Operator = op;
+
+            switch (Operator)
             {
                 case "<=":
                     ComparisonDelegate = (left, right) => left.Value <= right.Value;
                     break;
                 case "<":
-                    ComparisonDelegate = (left, right) => left.Value <= right.Value;
+                    ComparisonDelegate = (left, right) => left.Value < right.Value;
                     break;
                 case "=":
-                    ComparisonDelegate = (left, right) => left.Value <= right.Value;
+                    ComparisonDelegate = (left, right) => left.Value == right.Value;
                     break;
                 case ">":
-                    ComparisonDelegate = (left, right) => left.Value <= right.Value;
+                    ComparisonDelegate = (left, right) => left.Value > right.Value;
                     break;
                 case ">=":
-                    ComparisonDelegate = (left, right) => left.Value <= right.Value;
+                    ComparisonDelegate = (left, right) => left.Value >= right.Value;
                     break;
                 default:
-                    throw new ArgumentException("Comparison operator must be one of the following: <=, <, =, >, >=", nameof(comparisonOperator));
+                    throw new ArgumentException("Comparison operator must be one of the following: <=, <, =, >, >=", nameof(op));
             }
+
+            Result = ComparisonDelegate(left, right) ? "Success" : "Failure";
         }
-
-        public Comparison(DiceGrammarParser.ComparisonContext comparisonContext)
-        {
-        }
-
-        private Func<Roll, Roll, bool> ComparisonDelegate;
-
-        public string ComparisonOperator { get; }
 
         public bool Compare(Roll left, Roll right)
         {
             return ComparisonDelegate(left, right);
         }
-    }
 
-    public class Operation : Descriptor
-    {
-        public Operation(DiceGrammarParser.OperationContext operationContext)
-        {
-        }
+        public override string UnresolvedText => $"{Left.UnresolvedText} {Operator} {Right.UnresolvedText}";
+        public override string ResolvedText => $"{Left.ResolvedText} {Operator} {Right.ResolvedText}; {Left.Value} {Operator} {Right.Value} => {Result}";
+
     }
 }

@@ -4,6 +4,6 @@ namespace DiceParser
 {
     public interface IDescriptorFactory
     {
-        Roll CreateRoll(DiceGrammarParser.RollContext context);
+        Entry CreateEntry(DiceGrammarParser.EntryContext context);
     }
 }
