@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace DiceParser
+namespace DiceParser.DiceDescriptors
 {
     public class Comparison : Definition
     {

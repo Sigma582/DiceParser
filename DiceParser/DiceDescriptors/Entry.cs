@@ -1,4 +1,4 @@
-﻿namespace DiceParser
+﻿namespace DiceParser.DiceDescriptors
 {
     public class Entry : Descriptor
     {

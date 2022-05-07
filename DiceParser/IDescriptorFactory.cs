@@ -1,4 +1,5 @@
 ﻿using DiceParser.Grammar;
+using DiceParser.DiceDescriptors;
 
 namespace DiceParser
 {

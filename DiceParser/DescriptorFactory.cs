@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using Antlr4.Runtime.Tree;
+using DiceParser.DiceDescriptors;
 using DiceParser.Grammar;
 
 namespace DiceParser

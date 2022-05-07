@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace DiceParser
+namespace DiceParser.DiceDescriptors
 {
     public abstract class Roll : Definition
     {

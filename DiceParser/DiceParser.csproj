@@ -1,35 +1,11 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net5.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="DiceGrammarBaseListener.cs" />
-    <Compile Remove="DiceGrammarBaseVisitor.cs" />
-    <Compile Remove="DiceGrammarLexer.cs" />
-    <Compile Remove="DiceGrammarListener.cs" />
-    <Compile Remove="DiceGrammarParser.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Antlr4" Version="4.6.6">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Antlr4.Runtime" Version="4.6.6" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\DiceParser.Grammar\DiceParser.Grammar.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Antlr4 Update="DiceGrammar.g4">
-      <DefaultCustomToolNamespace>$([MSBuild]::ValueOrDefault('$(RootNamespace).%(DefaultCustomToolNamespace)', '').TrimEnd('.'))</DefaultCustomToolNamespace>
-      <CustomToolNamespace>$([MSBuild]::ValueOrDefault(%(CustomToolNamespace), %(DefaultCustomToolNamespace)))</CustomToolNamespace>
-    </Antlr4>
   </ItemGroup>
 
 </Project>

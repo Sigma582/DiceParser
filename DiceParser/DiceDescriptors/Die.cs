@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Linq;
 
-namespace DiceParser
+namespace DiceParser.DiceDescriptors
 {
     public class Die : Roll
     {
