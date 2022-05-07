@@ -18,12 +18,14 @@ namespace DiceParser
                 result.Definition = CreateDefinition(definitionContext);
             }
 
-            var labelContext = context.children[1] as DiceGrammarParser.LabelContext;
-            if (labelContext != null)
+            if (context.children.Count > 1)
             {
-                result.Label = labelContext.children[0].GetText();
+                var labelContext = context.children[1] as DiceGrammarParser.LabelContext;
+                if (labelContext != null)
+                {
+                    result.Label = labelContext.children[0].GetText();
+                }
             }
-
             return result;
         }
 
